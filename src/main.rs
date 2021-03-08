@@ -1,3 +1,4 @@
+mod shader_compilation;
 mod state;
 mod vertex;
 

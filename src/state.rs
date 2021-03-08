@@ -1,3 +1,4 @@
+use crate::vertex::Vertex;
 use std::iter;
 
 pub struct State {
@@ -14,7 +15,6 @@ pub struct State {
     shader_compiler: shaderc::Compiler,
 }
 
-use crate::vertex::Vertex;
 const VERTICES: &[Vertex] = &[
     Vertex {
         position: [0.0, 0.5, 0.0],
@@ -71,41 +71,23 @@ impl State {
         let mut shader_compiler = shaderc::Compiler::new().unwrap();
 
         let render_pipeline = {
-            let (vs_module, fs_module) = {
-                let vs_src = include_str!("shader.vert");
-                let fs_src = include_str!("shader.frag");
-                let vs_spirv = shader_compiler
-                    .compile_into_spirv(
-                        vs_src,
-                        shaderc::ShaderKind::Vertex,
-                        "shader.vert",
-                        "main",
-                        None,
-                    )
-                    .unwrap();
-                let fs_spirv = shader_compiler
-                    .compile_into_spirv(
-                        fs_src,
-                        shaderc::ShaderKind::Fragment,
-                        "shader.frag",
-                        "main",
-                        None,
-                    )
-                    .unwrap();
-                let vs_data = wgpu::util::make_spirv(vs_spirv.as_binary_u8());
-                let fs_data = wgpu::util::make_spirv(fs_spirv.as_binary_u8());
-                let vs_module = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
-                    label: Some("Vertex Shader"),
-                    source: vs_data,
-                    flags: wgpu::ShaderFlags::default(),
-                });
-                let fs_module = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
-                    label: Some("Fragment Shader"),
-                    source: fs_data,
-                    flags: wgpu::ShaderFlags::default(),
-                });
-                (vs_module, fs_module)
-            };
+            let vs_module = crate::shader_compilation::vertex_module(
+                &mut shader_compiler,
+                &device,
+                include_str!("shader.vert"),
+                "shader.vert",
+                "Vertex Shader",
+            )
+            .unwrap();
+
+            let fs_module = crate::shader_compilation::fragment_module(
+                &mut shader_compiler,
+                &device,
+                include_str!("shader.frag"),
+                "shader.frag",
+                "Fragment Shader",
+            )
+            .unwrap();
 
             let render_pipeline_layout =
                 device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
