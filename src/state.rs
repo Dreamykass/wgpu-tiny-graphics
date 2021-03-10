@@ -14,6 +14,7 @@ pub struct State {
 
     staging_belt: wgpu::util::StagingBelt,
     local_pool: futures::executor::LocalPool,
+    local_spawner: futures::executor::LocalSpawner,
 
     vertex_buffer: wgpu::Buffer,
 
@@ -139,6 +140,9 @@ impl State {
             usage: wgpu::BufferUsage::VERTEX,
         });
 
+        let local_pool = futures::executor::LocalPool::new();
+        let local_spawner = local_pool.spawner();
+
         Self {
             surface,
             device,
@@ -147,7 +151,8 @@ impl State {
             swap_chain,
             render_pipeline,
             staging_belt: wgpu::util::StagingBelt::new(1024),
-            local_pool: futures::executor::LocalPool::new(),
+            local_pool,
+            local_spawner,
             vertex_buffer,
             window_size,
             shader_compiler,
@@ -167,6 +172,7 @@ impl State {
                 label: Some("Render Encoder"),
             });
 
+        // triangle
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -230,8 +236,8 @@ impl State {
             render_pass.draw(0..VERTICES.len() as u32, 0..1);
         }
 
+        // glyphs
         {
-            // Prepare glyph_brush
             let inconsolata = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!(
                 "Inconsolata-Regular.ttf"
             ))
@@ -278,12 +284,18 @@ impl State {
                 )
                 .expect("Draw queued");
 
-            // Submit the work!
             self.staging_belt.finish();
-            // futures::executor::block_on(self.staging_belt.recall());
         }
+
         self.queue.submit(iter::once(encoder.finish()));
+
         // futures::executor::block_on(self.staging_belt.recall());
+        use futures::task::SpawnExt;
+        self.local_spawner
+            .spawn(self.staging_belt.recall())
+            .expect("Recall staging belt");
+
+        self.local_pool.run_until_stalled();
 
         Ok(())
     }
