@@ -16,3 +16,5 @@ log = "0.4"
 wgpu = { version = "0.7", features = ["vulkan-portability"]}
 futures = "0.3"
 bytemuck = { version = "1.4", features = [ "derive" ] }
+rand = "0.8.0"
+wgpu_glyph = "0.11"

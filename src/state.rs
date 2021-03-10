@@ -1,4 +1,6 @@
 use crate::vertex::Vertex;
+use rand::Rng;
+use std::collections::HashMap;
 use std::iter;
 
 pub struct State {
@@ -32,32 +34,27 @@ const VERTICES: &[Vertex] = &[
 
 // new
 impl State {
-    pub async fn new(window: &winit::window::Window) -> Self {
+    pub fn new(window: &winit::window::Window) -> Self {
         let window_size = window.inner_size();
 
-        // The instance is a handle to our GPU
-        // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
         let surface = unsafe { instance.create_surface(window) };
-        let adapter = instance
-            .request_adapter(&wgpu::RequestAdapterOptions {
+        let adapter =
+            futures::executor::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
                 compatible_surface: Some(&surface),
-            })
-            .await
+            }))
             .unwrap();
 
-        let (device, queue) = adapter
-            .request_device(
-                &wgpu::DeviceDescriptor {
-                    label: None,
-                    features: wgpu::Features::empty(),
-                    limits: wgpu::Limits::default(),
-                },
-                None, // Trace path
-            )
-            .await
-            .unwrap();
+        let (device, queue) = futures::executor::block_on(adapter.request_device(
+            &wgpu::DeviceDescriptor {
+                label: None,
+                features: wgpu::Features::empty(),
+                limits: wgpu::Limits::default(),
+            },
+            None, // Trace path
+        ))
+        .unwrap();
 
         let swap_chain_descriptor = wgpu::SwapChainDescriptor {
             usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
@@ -182,6 +179,45 @@ impl State {
                 }],
                 depth_stencil_attachment: None,
             });
+
+            let vertices: &[Vertex] = {
+                &[
+                    Vertex {
+                        position: [0.0, 0.5, 0.0],
+                        color: [
+                            rand::thread_rng().gen_range(0.0..1.0),
+                            rand::thread_rng().gen_range(0.0..1.0),
+                            rand::thread_rng().gen_range(0.0..1.0),
+                        ],
+                    },
+                    Vertex {
+                        position: [-0.5, -0.5, 0.0],
+                        color: [
+                            rand::thread_rng().gen_range(0.0..1.0),
+                            rand::thread_rng().gen_range(0.0..1.0),
+                            rand::thread_rng().gen_range(0.0..1.0),
+                        ],
+                    },
+                    Vertex {
+                        position: [0.5, -0.5, 0.0],
+                        color: [
+                            rand::thread_rng().gen_range(0.0..1.0),
+                            rand::thread_rng().gen_range(0.0..1.0),
+                            rand::thread_rng().gen_range(0.0..1.0),
+                        ],
+                    },
+                ]
+            };
+
+            use wgpu::util::DeviceExt;
+            self.vertex_buffer =
+                self.device
+                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: Some("Vertex Buffer"),
+                        // contents: bytemuck::cast_slice(VERTICES),
+                        contents: bytemuck::cast_slice(vertices),
+                        usage: wgpu::BufferUsage::VERTEX,
+                    });
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
