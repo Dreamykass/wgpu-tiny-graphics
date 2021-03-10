@@ -2,7 +2,7 @@ mod shader_compilation;
 mod state;
 mod vertex;
 
-use state::State;
+use state::GraphicsState;
 
 fn main() {
     env_logger::init();
@@ -11,8 +11,7 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    // Since main can't be async, we're going to need to block
-    let mut state: State = State::new(&window);
+    let mut graphics_state: GraphicsState = GraphicsState::new(&window);
 
     event_loop.run(move |event, _, control_flow| {
         use winit::event::*;
@@ -22,8 +21,7 @@ fn main() {
                 ref event,
                 window_id,
             } if window_id == window.id() => {
-                if !state.input(event) {
-                    // UPDATED!
+                if !graphics_state.input(event) {
                     match event {
                         WindowEvent::CloseRequested => {
                             *control_flow = winit::event_loop::ControlFlow::Exit
@@ -37,33 +35,37 @@ fn main() {
                             _ => {}
                         },
                         WindowEvent::Resized(physical_size) => {
-                            state.resize(*physical_size);
+                            graphics_state.resize(*physical_size);
                         }
                         WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                             // new_inner_size is &&mut so w have to dereference it twice
-                            state.resize(**new_inner_size);
+                            graphics_state.resize(**new_inner_size);
                         }
                         _ => {}
                     }
                 }
             }
             Event::RedrawRequested(_) => {
-                state.update();
-                match state.render() {
+                graphics_state.update();
+                match graphics_state.render() {
                     Ok(_) => {}
                     // Recreate the swap_chain if lost
-                    Err(wgpu::SwapChainError::Lost) => state.resize(state.window_size()),
+                    Err(wgpu::SwapChainError::Lost) => {
+                        graphics_state.resize(graphics_state.window_size())
+                    }
                     // The system is out of memory, we should probably quit
                     Err(wgpu::SwapChainError::OutOfMemory) => {
                         *control_flow = winit::event_loop::ControlFlow::Exit
                     }
                     // All other errors (Outdated, Timeout) should be resolved by the next frame
-                    Err(e) => eprintln!("{:?}", e),
+                    Err(e) => log::warn!("{:?}", e),
                 }
             }
             Event::MainEventsCleared => {
-                // RedrawRequested will only trigger once, unless we manually
-                // request it.
+                // incoming networking here
+                // updating + physics here
+                // outgoing networking again here?
+                // draw:
                 window.request_redraw();
             }
             _ => {}

@@ -1,9 +1,8 @@
 use crate::vertex::Vertex;
 use rand::Rng;
-use std::collections::HashMap;
 use std::iter;
 
-pub struct State {
+pub struct GraphicsState {
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -19,6 +18,7 @@ pub struct State {
     vertex_buffer: wgpu::Buffer,
 
     window_size: winit::dpi::PhysicalSize<u32>,
+    #[allow(dead_code)]
     shader_compiler: shaderc::Compiler,
 }
 
@@ -38,7 +38,7 @@ const VERTICES: &[Vertex] = &[
 ];
 
 // new
-impl State {
+impl GraphicsState {
     pub fn new(window: &winit::window::Window) -> Self {
         let window_size = window.inner_size();
 
@@ -137,7 +137,7 @@ impl State {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(VERTICES),
-            usage: wgpu::BufferUsage::VERTEX,
+            usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST,
         });
 
         let local_pool = futures::executor::LocalPool::new();
@@ -161,7 +161,7 @@ impl State {
 }
 
 // render
-impl State {
+impl GraphicsState {
     pub fn render(&mut self) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?.output;
 
@@ -221,15 +221,11 @@ impl State {
                 ]
             };
 
-            use wgpu::util::DeviceExt;
-            self.vertex_buffer =
-                self.device
-                    .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: Some("Vertex Buffer"),
-                        // contents: bytemuck::cast_slice(VERTICES),
-                        contents: bytemuck::cast_slice(vertices),
-                        usage: wgpu::BufferUsage::VERTEX,
-                    });
+            self.queue.write_buffer(
+                &self.vertex_buffer,
+                wgpu::BufferAddress::from(0u32),
+                bytemuck::cast_slice(vertices),
+            );
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
@@ -302,7 +298,7 @@ impl State {
 }
 
 // other
-impl State {
+impl GraphicsState {
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
         self.window_size = new_size;
         self.swap_chain_descriptor.width = new_size.width;
@@ -321,7 +317,7 @@ impl State {
 }
 
 // accessors
-impl State {
+impl GraphicsState {
     pub fn window_size(&self) -> winit::dpi::PhysicalSize<u32> {
         self.window_size
     }
