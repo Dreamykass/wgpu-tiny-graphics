@@ -11,6 +11,10 @@ pub struct State {
     swap_chain_descriptor: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
     render_pipeline: wgpu::RenderPipeline,
+
+    staging_belt: wgpu::util::StagingBelt,
+    local_pool: futures::executor::LocalPool,
+
     vertex_buffer: wgpu::Buffer,
 
     window_size: winit::dpi::PhysicalSize<u32>,
@@ -142,6 +146,8 @@ impl State {
             swap_chain_descriptor,
             swap_chain,
             render_pipeline,
+            staging_belt: wgpu::util::StagingBelt::new(1024),
+            local_pool: futures::executor::LocalPool::new(),
             vertex_buffer,
             window_size,
             shader_compiler,
@@ -224,7 +230,60 @@ impl State {
             render_pass.draw(0..VERTICES.len() as u32, 0..1);
         }
 
+        {
+            // Prepare glyph_brush
+            let inconsolata = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!(
+                "Inconsolata-Regular.ttf"
+            ))
+            .unwrap();
+
+            let mut glyph_brush = wgpu_glyph::GlyphBrushBuilder::using_font(inconsolata)
+                .build(&self.device, self.swap_chain_descriptor.format);
+
+            glyph_brush.queue(wgpu_glyph::Section {
+                screen_position: (30.0, 30.0),
+                bounds: (
+                    self.window_size.width as f32,
+                    self.window_size.height as f32,
+                ),
+                text: vec![wgpu_glyph::Text::new("Hello wgpu_glyph!")
+                    .with_color([0.0, 0.0, 0.0, 1.0])
+                    .with_scale(40.0)],
+                ..wgpu_glyph::Section::default()
+            });
+
+            glyph_brush.queue(wgpu_glyph::Section {
+                screen_position: (30.0, 90.0),
+                bounds: (
+                    self.window_size.width as f32,
+                    self.window_size.height as f32,
+                ),
+                text: vec![wgpu_glyph::Text::new(&*format!(
+                    "Hello wgpu_glyph! {}",
+                    rand::thread_rng().gen_range(0..100)
+                ))
+                .with_color([1.0, 1.0, 1.0, 1.0])
+                .with_scale(40.0)],
+                ..wgpu_glyph::Section::default()
+            });
+
+            glyph_brush
+                .draw_queued(
+                    &self.device,
+                    &mut self.staging_belt,
+                    &mut encoder,
+                    &frame.view,
+                    self.window_size.width,
+                    self.window_size.height,
+                )
+                .expect("Draw queued");
+
+            // Submit the work!
+            self.staging_belt.finish();
+            // futures::executor::block_on(self.staging_belt.recall());
+        }
         self.queue.submit(iter::once(encoder.finish()));
+        // futures::executor::block_on(self.staging_belt.recall());
 
         Ok(())
     }
