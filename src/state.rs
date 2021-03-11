@@ -1,8 +1,13 @@
+use crate::frame_counter::FrameCounter;
 use crate::vertex::Vertex;
 use rand::Rng;
 use std::iter;
+use std::time::Instant;
 
 pub struct GraphicsState {
+    pub window: winit::window::Window,
+    window_size: winit::dpi::PhysicalSize<u32>,
+
     surface: wgpu::Surface,
     device: wgpu::Device,
     queue: wgpu::Queue,
@@ -15,35 +20,26 @@ pub struct GraphicsState {
     local_pool: futures::executor::LocalPool,
     local_spawner: futures::executor::LocalSpawner,
 
+    pub imgui_context: imgui::Context,
+    imgui_renderer: imgui_wgpu::Renderer,
+    imgui_platform: imgui_winit_support::WinitPlatform,
+    demo_open: bool,
+
     vertex_buffer: wgpu::Buffer,
 
-    window_size: winit::dpi::PhysicalSize<u32>,
     #[allow(dead_code)]
     shader_compiler: shaderc::Compiler,
-}
 
-const VERTICES: &[Vertex] = &[
-    Vertex {
-        position: [0.0, 0.5, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
-    Vertex {
-        position: [-0.5, -0.5, 0.0],
-        color: [0.0, 1.0, 0.0],
-    },
-    Vertex {
-        position: [0.5, -0.5, 0.0],
-        color: [0.0, 0.0, 1.0],
-    },
-];
+    frame_counter: FrameCounter,
+}
 
 // new
 impl GraphicsState {
-    pub fn new(window: &winit::window::Window) -> Self {
+    pub fn new(window: winit::window::Window) -> Self {
         let window_size = window.inner_size();
 
-        let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
-        let surface = unsafe { instance.create_surface(window) };
+        let instance = wgpu::Instance::new(wgpu::BackendBit::VULKAN);
+        let surface = unsafe { instance.create_surface(&window) };
         let adapter =
             futures::executor::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -136,26 +132,74 @@ impl GraphicsState {
         use wgpu::util::DeviceExt;
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
+            contents: &[0; 640],
             usage: wgpu::BufferUsage::VERTEX | wgpu::BufferUsage::COPY_DST,
         });
 
         let local_pool = futures::executor::LocalPool::new();
         let local_spawner = local_pool.spawner();
 
+        let (imgui_context, imgui_renderer, imgui_platform) = {
+            let hidpi_factor = window.scale_factor();
+            let mut imgui = imgui::Context::create();
+            let mut platform = imgui_winit_support::WinitPlatform::init(&mut imgui);
+            platform.attach_window(
+                imgui.io_mut(),
+                &window,
+                imgui_winit_support::HiDpiMode::Default,
+            );
+            imgui.set_ini_filename(None);
+
+            let font_size = (13.0 * hidpi_factor) as f32;
+            imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
+
+            imgui
+                .fonts()
+                .add_font(&[imgui::FontSource::DefaultFontData {
+                    config: Some(imgui::FontConfig {
+                        oversample_h: 1,
+                        pixel_snap_h: true,
+                        size_pixels: font_size,
+                        ..Default::default()
+                    }),
+                }]);
+
+            let renderer_config = imgui_wgpu::RendererConfig {
+                texture_format: swap_chain_descriptor.format,
+                ..Default::default()
+            };
+
+            let renderer = imgui_wgpu::Renderer::new(&mut imgui, &device, &queue, renderer_config);
+
+            (imgui, renderer, platform)
+        };
+
         Self {
+            window,
             surface,
             device,
+
             queue,
             swap_chain_descriptor,
             swap_chain,
             render_pipeline,
+
             staging_belt: wgpu::util::StagingBelt::new(1024),
             local_pool,
             local_spawner,
+
+            imgui_context,
+            imgui_renderer,
+            imgui_platform,
+            demo_open: true,
+
             vertex_buffer,
+
             window_size,
+
             shader_compiler,
+
+            frame_counter: FrameCounter::default(),
         }
     }
 }
@@ -163,7 +207,13 @@ impl GraphicsState {
 // render
 impl GraphicsState {
     pub fn render(&mut self) -> Result<(), wgpu::SwapChainError> {
-        let frame = self.swap_chain.get_current_frame()?.output;
+        let absolute_frame_n = self.frame_counter.absolute_frame_count();
+        let last_frame_time = self.frame_counter.last_frame_time();
+        let average_frame_time = self.frame_counter.average_frame_time();
+        let last_fps = self.frame_counter.last_fps();
+        let average_fps = self.frame_counter.average_fps();
+
+        let frame = self.swap_chain.get_current_frame()?;
 
         // Encodes a series of GPU operations.
         let mut encoder = self
@@ -172,12 +222,12 @@ impl GraphicsState {
                 label: Some("Render Encoder"),
             });
 
-        // triangle
+        // triangle (1st render pass
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
                 color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                    attachment: &frame.view,
+                    attachment: &frame.output.view,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -229,10 +279,10 @@ impl GraphicsState {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.draw(0..VERTICES.len() as u32, 0..1);
+            render_pass.draw(0..vertices.len() as u32, 0..1);
         }
 
-        // glyphs
+        // glyphs (2nd internal render pass)
         {
             let inconsolata = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!(
                 "Inconsolata-Regular.ttf"
@@ -274,7 +324,7 @@ impl GraphicsState {
                     &self.device,
                     &mut self.staging_belt,
                     &mut encoder,
-                    &frame.view,
+                    &frame.output.view,
                     self.window_size.width,
                     self.window_size.height,
                 )
@@ -283,9 +333,71 @@ impl GraphicsState {
             self.staging_belt.finish();
         }
 
+        // imgui (3rd render pass)
+        {
+            self.imgui_context
+                .io_mut()
+                .update_delta_time(last_frame_time);
+
+            self.imgui_platform
+                .prepare_frame(self.imgui_context.io_mut(), &self.window)
+                .expect("Failed to prepare frame");
+            let ui = self.imgui_context.frame();
+
+            {
+                let window = imgui::Window::new(imgui::im_str!("Hello world"));
+                window
+                    .size([300.0, 100.0], imgui::Condition::FirstUseEver)
+                    .build(&ui, || {
+                        ui.text(imgui::im_str!("Hello world!"));
+                        ui.text(imgui::im_str!("This...is...imgui-rs on WGPU!"));
+                        ui.separator();
+                        let mouse_pos = ui.io().mouse_pos;
+                        ui.text(imgui::im_str!(
+                            "Mouse Position: ({:.1},{:.1})",
+                            mouse_pos[0],
+                            mouse_pos[1]
+                        ));
+                    });
+
+                let window = imgui::Window::new(imgui::im_str!("Hello too"));
+                window
+                    .size([400.0, 200.0], imgui::Condition::FirstUseEver)
+                    .position([400.0, 200.0], imgui::Condition::FirstUseEver)
+                    .build(&ui, || {
+                        ui.text(imgui::im_str!(
+                            "Frame n: {}\nFrame time: {}ms\nAverage frame time: {}\nFPS: {}\nAverage FPS: {}",
+                            absolute_frame_n,
+                            last_frame_time.as_secs_f32() * 1000f32,
+                            average_frame_time,
+                            last_fps,
+                            average_fps,
+                        ));
+                    });
+
+                ui.show_demo_window(&mut self.demo_open);
+
+                let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: None,
+                    color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
+                        attachment: &frame.output.view,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Load,
+                            store: true,
+                        },
+                    }],
+                    depth_stencil_attachment: None,
+                });
+
+                self.imgui_renderer
+                    .render(ui.render(), &self.queue, &self.device, &mut render_pass)
+                    .expect("Rendering failed");
+            }
+        }
+
         self.queue.submit(iter::once(encoder.finish()));
 
-        // futures::executor::block_on(self.staging_belt.recall());
         use futures::task::SpawnExt;
         self.local_spawner
             .spawn(self.staging_belt.recall())
@@ -293,23 +405,29 @@ impl GraphicsState {
 
         self.local_pool.run_until_stalled();
 
+        self.frame_counter.frame_presented();
+
         Ok(())
     }
 }
 
 // other
 impl GraphicsState {
-    pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
-        self.window_size = new_size;
-        self.swap_chain_descriptor.width = new_size.width;
-        self.swap_chain_descriptor.height = new_size.height;
+    pub fn resize(&mut self) {
+        // self.window_size = new_size;
+        self.window_size = self.window.inner_size();
+
+        self.swap_chain_descriptor.width = self.window_size.width;
+        self.swap_chain_descriptor.height = self.window_size.height;
         self.swap_chain = self
             .device
             .create_swap_chain(&self.surface, &self.swap_chain_descriptor);
     }
 
     #[allow(unused_variables)]
-    pub fn input(&mut self, event: &winit::event::WindowEvent) -> bool {
+    pub fn input(&mut self, event: &winit::event::Event<()>) -> bool {
+        self.imgui_platform
+            .handle_event(self.imgui_context.io_mut(), &self.window, &event);
         false
     }
 
