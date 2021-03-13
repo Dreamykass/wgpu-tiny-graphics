@@ -1,6 +1,7 @@
 use crate::frame_counter::FrameCounter;
+use std::cell::RefCell;
 
-pub struct GraphicsState {
+pub struct GraphicsState<'im> {
     pub window: winit::window::Window,
     pub(super) window_size: winit::dpi::PhysicalSize<u32>,
 
@@ -16,7 +17,7 @@ pub struct GraphicsState {
     pub(super) local_pool: futures::executor::LocalPool,
     pub(super) local_spawner: futures::executor::LocalSpawner,
 
-    pub imgui_context: imgui::Context,
+    pub(super) imgui_context: &'im RefCell<imgui::Context>,
     pub(super) imgui_renderer: imgui_wgpu::Renderer,
     pub(super) imgui_platform: imgui_winit_support::WinitPlatform,
     pub(super) demo_open: bool,

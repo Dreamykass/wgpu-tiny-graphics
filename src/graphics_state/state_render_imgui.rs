@@ -1,6 +1,6 @@
 use crate::graphics_state::state::GraphicsState;
 
-impl GraphicsState {
+impl<'im> GraphicsState<'im> {
     pub fn render_pass_imgui(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -22,14 +22,14 @@ impl GraphicsState {
             average_fps,
         );
 
-        self.imgui_context
-            .io_mut()
-            .update_delta_time(last_frame_time);
+        let mut imgui_context = self.imgui_context.borrow_mut();
+
+        imgui_context.io_mut().update_delta_time(last_frame_time);
 
         self.imgui_platform
-            .prepare_frame(self.imgui_context.io_mut(), &self.window)
+            .prepare_frame(imgui_context.io_mut(), &self.window)
             .expect("Failed to prepare frame");
-        let ui = self.imgui_context.frame();
+        let ui = imgui_context.frame();
 
         // windows
         {

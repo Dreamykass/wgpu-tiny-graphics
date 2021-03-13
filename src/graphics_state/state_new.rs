@@ -1,10 +1,11 @@
 use crate::frame_counter::FrameCounter;
 use crate::graphics_state::state::GraphicsState;
 use crate::vertex::Vertex;
+use std::cell::RefCell;
 
 // new
-impl GraphicsState {
-    pub fn new(window: winit::window::Window) -> Self {
+impl<'im> GraphicsState<'im> {
+    pub fn new(window: winit::window::Window, imgui_context: &'im RefCell<imgui::Context>) -> Self {
         let window_size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::BackendBit::VULKAN);
@@ -63,7 +64,6 @@ impl GraphicsState {
                     push_constant_ranges: &[],
                 });
 
-            // ret from block
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Render Pipeline"),
                 layout: Some(&render_pipeline_layout),
@@ -108,9 +108,9 @@ impl GraphicsState {
         let local_pool = futures::executor::LocalPool::new();
         let local_spawner = local_pool.spawner();
 
-        let (imgui_context, imgui_renderer, imgui_platform) = {
+        let (imgui_renderer, imgui_platform) = {
+            let mut imgui = imgui_context.borrow_mut();
             let hidpi_factor = window.scale_factor();
-            let mut imgui = imgui::Context::create();
             let mut platform = imgui_winit_support::WinitPlatform::init(&mut imgui);
             platform.attach_window(
                 imgui.io_mut(),
@@ -140,7 +140,7 @@ impl GraphicsState {
 
             let renderer = imgui_wgpu::Renderer::new(&mut imgui, &device, &queue, renderer_config);
 
-            (imgui, renderer, platform)
+            (renderer, platform)
         };
 
         Self {

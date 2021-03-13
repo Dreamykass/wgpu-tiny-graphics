@@ -1,7 +1,7 @@
 use crate::graphics_state::state::GraphicsState;
 
 // other
-impl GraphicsState {
+impl GraphicsState<'_> {
     pub fn resize(&mut self) {
         // self.window_size = new_size;
         self.window_size = self.window.inner_size();
@@ -15,8 +15,11 @@ impl GraphicsState {
 
     #[allow(unused_variables)]
     pub fn input(&mut self, event: &winit::event::Event<()>) -> bool {
-        self.imgui_platform
-            .handle_event(self.imgui_context.io_mut(), &self.window, &event);
+        self.imgui_platform.handle_event(
+            self.imgui_context.borrow_mut().io_mut(),
+            &self.window,
+            &event,
+        );
         false
     }
 
@@ -24,7 +27,7 @@ impl GraphicsState {
 }
 
 // accessors
-impl GraphicsState {
+impl GraphicsState<'_> {
     pub fn window_size(&self) -> winit::dpi::PhysicalSize<u32> {
         self.window_size
     }

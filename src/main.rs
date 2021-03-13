@@ -1,4 +1,5 @@
 use crate::graphics_state::GraphicsState;
+use std::cell::RefCell;
 
 mod frame_counter;
 mod graphics_state;
@@ -28,7 +29,9 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let mut graphics_state = GraphicsState::new(window);
+    let imgui_context = Box::leak(Box::new(RefCell::new(imgui::Context::create())));
+
+    let mut graphics_state = GraphicsState::new(window, imgui_context);
 
     event_loop.run(move |event, _, control_flow| {
         use winit::event::*;

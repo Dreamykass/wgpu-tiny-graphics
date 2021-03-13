@@ -3,7 +3,7 @@ use crate::vertex::Vertex;
 use rand::Rng;
 
 // render
-impl GraphicsState {
+impl GraphicsState<'_> {
     pub fn render(&mut self) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?;
 

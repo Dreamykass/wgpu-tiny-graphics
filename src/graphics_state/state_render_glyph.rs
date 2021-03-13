@@ -1,7 +1,7 @@
 use crate::graphics_state::state::GraphicsState;
 use rand::Rng;
 
-impl GraphicsState {
+impl GraphicsState<'_> {
     pub fn render_pass_glyph(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
