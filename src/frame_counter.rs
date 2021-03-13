@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
-const N_DURATIONS: usize = 120;
+const N_DURATIONS: usize = 360;
 
 pub struct FrameCounter {
     absolute_count: u64,
@@ -61,5 +61,12 @@ impl FrameCounter {
             .map(Duration::as_secs_f32)
             .sum::<f32>()
             / self.past_n_durations.len() as f32)
+    }
+
+    pub fn past_n_fps(&self) -> Vec<f32> {
+        self.past_n_durations
+            .iter()
+            .map(|d| 1.0 / d.as_secs_f32())
+            .collect()
     }
 }

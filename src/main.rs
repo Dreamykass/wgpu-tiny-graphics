@@ -1,12 +1,11 @@
+use crate::graphics_state::GraphicsState;
+
 mod frame_counter;
+mod graphics_state;
 mod shader_compilation;
-mod state;
 mod vertex;
 
-use state::GraphicsState;
-
 fn main() {
-    // env_logger::init();
     fern::Dispatch::new()
         .format(|out, message, record| {
             out.finish(format_args!(
@@ -29,7 +28,7 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let mut graphics_state: GraphicsState = GraphicsState::new(window);
+    let mut graphics_state = GraphicsState::new(window);
 
     event_loop.run(move |event, _, control_flow| {
         use winit::event::*;
