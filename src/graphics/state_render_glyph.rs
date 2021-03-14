@@ -1,12 +1,14 @@
-use crate::graphics_state::state::GraphicsState;
+use crate::graphics::state::GraphicsState;
 use rand::Rng;
 
-impl GraphicsState<'_> {
+impl GraphicsState {
     pub fn render_pass_glyph(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
         frame: &wgpu::SwapChainFrame,
     ) {
+        let window_inner_size = self.window_inner_size();
+
         let inconsolata = wgpu_glyph::ab_glyph::FontArc::try_from_slice(include_bytes!(
             "../Inconsolata-Regular.ttf"
         ))
@@ -18,8 +20,8 @@ impl GraphicsState<'_> {
         glyph_brush.queue(wgpu_glyph::Section {
             screen_position: (30.0, 30.0),
             bounds: (
-                self.window_size.width as f32,
-                self.window_size.height as f32,
+                self.window_inner_size().width as f32,
+                self.window_inner_size().height as f32,
             ),
             text: vec![wgpu_glyph::Text::new("Hello wgpu_glyph!")
                 .with_color([0.0, 0.0, 0.0, 1.0])
@@ -30,8 +32,8 @@ impl GraphicsState<'_> {
         glyph_brush.queue(wgpu_glyph::Section {
             screen_position: (30.0, 90.0),
             bounds: (
-                self.window_size.width as f32,
-                self.window_size.height as f32,
+                self.window_inner_size().width as f32,
+                self.window_inner_size().height as f32,
             ),
             text: vec![wgpu_glyph::Text::new(&*format!(
                 "Hello wgpu_glyph! {}",
@@ -48,8 +50,8 @@ impl GraphicsState<'_> {
                 &mut self.staging_belt,
                 encoder,
                 &frame.output.view,
-                self.window_size.width,
-                self.window_size.height,
+                window_inner_size.width,
+                window_inner_size.height,
             )
             .expect("Draw queued");
 

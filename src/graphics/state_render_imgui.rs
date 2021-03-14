@@ -1,6 +1,6 @@
-use crate::graphics_state::state::GraphicsState;
+use crate::graphics::state::GraphicsState;
 
-impl<'im> GraphicsState<'im> {
+impl<'im> GraphicsState {
     pub fn render_pass_imgui(
         &mut self,
         encoder: &mut wgpu::CommandEncoder,
@@ -68,7 +68,7 @@ impl<'im> GraphicsState<'im> {
                     ui.text(frame_metrics);
                 });
 
-            ui.show_demo_window(&mut self.demo_open);
+            ui.show_demo_window(&mut self.imgui_demo_open);
         }
 
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

@@ -1,11 +1,14 @@
 use crate::frame_counter::FrameCounter;
-use crate::graphics_state::state::GraphicsState;
+use crate::graphics::state::GraphicsState;
 use crate::vertex::Vertex;
 use std::cell::RefCell;
 
 // new
-impl<'im> GraphicsState<'im> {
-    pub fn new(window: winit::window::Window, imgui_context: &'im RefCell<imgui::Context>) -> Self {
+impl GraphicsState {
+    pub fn new(
+        window: winit::window::Window,
+        imgui_context: &'static RefCell<imgui::Context>,
+    ) -> Self {
         let window_size = window.inner_size();
 
         let instance = wgpu::Instance::new(wgpu::BackendBit::VULKAN);
@@ -160,11 +163,9 @@ impl<'im> GraphicsState<'im> {
             imgui_context,
             imgui_renderer,
             imgui_platform,
-            demo_open: true,
+            imgui_demo_open: true,
 
             vertex_buffer,
-
-            window_size,
 
             shader_compiler,
 

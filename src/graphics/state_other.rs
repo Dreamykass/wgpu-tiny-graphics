@@ -1,13 +1,13 @@
-use crate::graphics_state::state::GraphicsState;
+use crate::graphics::state::GraphicsState;
 
 // other
-impl GraphicsState<'_> {
+impl GraphicsState {
     pub fn resize(&mut self) {
         // self.window_size = new_size;
-        self.window_size = self.window.inner_size();
+        let window_size = self.window.inner_size();
 
-        self.swap_chain_descriptor.width = self.window_size.width;
-        self.swap_chain_descriptor.height = self.window_size.height;
+        self.swap_chain_descriptor.width = window_size.width;
+        self.swap_chain_descriptor.height = window_size.height;
         self.swap_chain = self
             .device
             .create_swap_chain(&self.surface, &self.swap_chain_descriptor);
@@ -22,13 +22,11 @@ impl GraphicsState<'_> {
         );
         false
     }
-
-    pub fn update(&mut self) {}
 }
 
 // accessors
-impl GraphicsState<'_> {
-    pub fn window_size(&self) -> winit::dpi::PhysicalSize<u32> {
-        self.window_size
+impl GraphicsState {
+    pub fn window_inner_size(&self) -> winit::dpi::PhysicalSize<u32> {
+        self.window.inner_size()
     }
 }

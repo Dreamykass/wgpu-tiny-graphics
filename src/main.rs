@@ -1,10 +1,11 @@
-use crate::graphics_state::GraphicsState;
 use std::cell::RefCell;
 
 mod frame_counter;
-mod graphics_state;
+mod graphics;
 mod shader_compilation;
 mod vertex;
+
+use graphics::GraphicsState;
 
 fn main() {
     fern::Dispatch::new()
@@ -64,7 +65,6 @@ fn main() {
                 }
             }
             Event::RedrawRequested(_) => {
-                graphics_state.update();
                 match graphics_state.render() {
                     Ok(_) => {}
                     // Recreate the swap_chain if lost

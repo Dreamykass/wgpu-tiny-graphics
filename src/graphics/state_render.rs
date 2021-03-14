@@ -1,9 +1,29 @@
-use crate::graphics_state::state::GraphicsState;
+use crate::graphics::state::GraphicsState;
+use crate::graphics::CurrentFrame;
 use crate::vertex::Vertex;
 use rand::Rng;
+use std::time::Instant;
 
-// render
-impl GraphicsState<'_> {
+// new render
+impl GraphicsState {
+    pub fn begin_current_frame(&mut self) -> Result<CurrentFrame, wgpu::SwapChainError> {
+        let frame = self.swap_chain.get_current_frame()?;
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Render Encoder"),
+            });
+
+        Ok(CurrentFrame {
+            graphics_state: self,
+            frame,
+            encoder,
+        })
+    }
+}
+
+// old render
+impl GraphicsState {
     pub fn render(&mut self) -> Result<(), wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?;
 
@@ -15,6 +35,7 @@ impl GraphicsState<'_> {
             });
 
         // triangle (1st render pass)
+        let time = Instant::now();
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -73,12 +94,17 @@ impl GraphicsState<'_> {
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.draw(0..vertices.len() as u32, 0..1);
         }
+        log::info!("triangle: {:?}ms", time.elapsed().as_secs_f32() * 1000.0);
 
         // glyphs (2nd internal render pass)
-        self.render_pass_glyph(&mut encoder, &frame);
+        // let time = Instant::now();
+        // self.render_pass_glyph(&mut encoder, &frame);
+        // log::info!("glyphs: {:?}ms", time.elapsed().as_secs_f32() * 1000.0);
 
         // imgui (3rd internal render pass)
-        self.render_pass_imgui(&mut encoder, &frame);
+        // let time = Instant::now();
+        // self.render_pass_imgui(&mut encoder, &frame);
+        // log::info!("imgui: {:?}ms", time.elapsed().as_secs_f32() * 1000.0);
 
         self.queue.submit(std::iter::once(encoder.finish()));
 
