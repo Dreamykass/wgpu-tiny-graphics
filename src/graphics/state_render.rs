@@ -8,7 +8,7 @@ use std::time::Instant;
 impl GraphicsState {
     pub fn begin_current_frame(&mut self) -> Result<CurrentFrame, wgpu::SwapChainError> {
         let frame = self.swap_chain.get_current_frame()?;
-        let mut encoder = self
+        let encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
@@ -97,14 +97,14 @@ impl GraphicsState {
         log::info!("triangle: {:?}ms", time.elapsed().as_secs_f32() * 1000.0);
 
         // glyphs (2nd internal render pass)
-        // let time = Instant::now();
-        // self.render_pass_glyph(&mut encoder, &frame);
-        // log::info!("glyphs: {:?}ms", time.elapsed().as_secs_f32() * 1000.0);
+        let time = Instant::now();
+        self.render_pass_glyph(&mut encoder, &frame);
+        log::info!("glyphs: {:?}ms", time.elapsed().as_secs_f32() * 1000.0);
 
         // imgui (3rd internal render pass)
-        // let time = Instant::now();
-        // self.render_pass_imgui(&mut encoder, &frame);
-        // log::info!("imgui: {:?}ms", time.elapsed().as_secs_f32() * 1000.0);
+        let time = Instant::now();
+        self.render_pass_imgui(&mut encoder, &frame);
+        log::info!("imgui: {:?}ms", time.elapsed().as_secs_f32() * 1000.0);
 
         self.queue.submit(std::iter::once(encoder.finish()));
 

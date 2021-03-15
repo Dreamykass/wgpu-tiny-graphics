@@ -24,7 +24,7 @@ impl GraphicsState {
                 self.window_inner_size().height as f32,
             ),
             text: vec![wgpu_glyph::Text::new("Hello wgpu_glyph!")
-                .with_color([0.0, 0.0, 0.0, 1.0])
+                .with_color([0.0, 1.0, 0.0, 1.0])
                 .with_scale(40.0)],
             ..wgpu_glyph::Section::default()
         });

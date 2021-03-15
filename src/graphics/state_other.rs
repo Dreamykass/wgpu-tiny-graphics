@@ -13,15 +13,15 @@ impl GraphicsState {
             .create_swap_chain(&self.surface, &self.swap_chain_descriptor);
     }
 
-    #[allow(unused_variables)]
-    pub fn input(&mut self, event: &winit::event::Event<()>) -> bool {
-        self.imgui_platform.handle_event(
-            self.imgui_context.borrow_mut().io_mut(),
-            &self.window,
-            &event,
-        );
-        false
-    }
+    // #[allow(unused_variables)]
+    // pub fn input(&mut self, event: &winit::event::Event<()>) -> bool {
+    //     self.imgui_platform.handle_event(
+    //         self.imgui_context.borrow_mut().io_mut(),
+    //         &self.window,
+    //         &event,
+    //     );
+    //     false
+    // }
 }
 
 // accessors
