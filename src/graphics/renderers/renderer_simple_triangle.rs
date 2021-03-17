@@ -1,12 +1,10 @@
-#![allow(dead_code)]
+// #![allow(dead_code)]
 
 use crate::graphics::{CurrentFrame, GraphicsState};
 use crate::vertex::Vertex;
 use rand::Rng;
 
 pub struct RendererSimpleTriangle {
-    // frag_name: String,
-    // vert_name: String,
     pipeline: wgpu::RenderPipeline,
     buffer: wgpu::Buffer,
 }
@@ -17,8 +15,8 @@ impl RendererSimpleTriangle {
             let vs_module = crate::shader_compilation::vertex_module(
                 &mut graphics_state.shader_compiler,
                 &graphics_state.device,
-                include_str!("../../shader.vert"),
-                "shader.vert",
+                include_str!("../../shader_vert.glsl"),
+                "shader_vert.glsl",
                 "Vertex Shader",
             )
             .unwrap();
@@ -26,8 +24,8 @@ impl RendererSimpleTriangle {
             let fs_module = crate::shader_compilation::fragment_module(
                 &mut graphics_state.shader_compiler,
                 &graphics_state.device,
-                include_str!("../../shader.frag"),
-                "shader.frag",
+                include_str!("../../shader_frag.glsl"),
+                "shader_frag.glsl",
                 "Fragment Shader",
             )
             .unwrap();
@@ -110,12 +108,7 @@ impl RendererSimpleTriangle {
                         attachment: &current_frame.frame.output.view,
                         resolve_target: None,
                         ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.1,
-                                g: 0.2,
-                                b: 0.3,
-                                a: 1.0,
-                            }),
+                            load: wgpu::LoadOp::Load,
                             store: true,
                         },
                     }],

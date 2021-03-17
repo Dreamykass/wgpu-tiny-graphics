@@ -1,3 +1,6 @@
+#![allow(clippy::collapsible_match)]
+#![allow(clippy::single_match)]
+
 use std::cell::RefCell;
 
 mod frame_counter;
@@ -34,7 +37,7 @@ fn main() {
 
     let (imgui_context, imgui_platform) = {
         let context = Box::leak(Box::new(RefCell::new(imgui::Context::create())));
-        let mut platform = Box::leak(Box::new(RefCell::new(
+        let platform = Box::leak(Box::new(RefCell::new(
             imgui_winit_support::WinitPlatform::init(&mut *context.borrow_mut()),
         )));
         platform.borrow_mut().attach_window(
@@ -47,6 +50,12 @@ fn main() {
 
     let mut graphics_state = GraphicsState::new(window, imgui_context);
 
+    let mut view = graphics::SfView {
+        center: (500.0, 500.0),
+        size: (1000.0, 1000.0),
+        rotation: 0.0,
+    };
+    let mut renderer_with_view = graphics::renderers::RendererWithView::new(&mut graphics_state);
     let mut renderer_simple_triangle =
         graphics::renderers::RendererSimpleTriangle::new(&mut graphics_state);
     let mut renderer_glyph = graphics::renderers::RendererGlyph::new(&graphics_state);
@@ -68,9 +77,40 @@ fn main() {
                     WindowEvent::KeyboardInput { input, .. } => match input {
                         KeyboardInput {
                             state: ElementState::Pressed,
-                            virtual_keycode: Some(VirtualKeyCode::Escape),
+                            virtual_keycode: Some(keycode),
                             ..
-                        } => *control_flow = winit::event_loop::ControlFlow::Exit,
+                        } => {
+                            //
+                            match keycode {
+                                VirtualKeyCode::LShift => {
+                                    view.size.0 += 10.0;
+                                    view.size.1 += 10.0;
+                                }
+                                VirtualKeyCode::LControl => {
+                                    view.size.0 -= 10.0;
+                                    view.size.1 -= 10.0;
+                                }
+                                VirtualKeyCode::E => {
+                                    view.rotation -= 5.0;
+                                }
+                                VirtualKeyCode::Q => {
+                                    view.rotation += 5.0;
+                                }
+                                VirtualKeyCode::W | VirtualKeyCode::Up => {
+                                    view.center.1 += 5.0;
+                                }
+                                VirtualKeyCode::A | VirtualKeyCode::Left => {
+                                    view.center.0 += 5.0;
+                                }
+                                VirtualKeyCode::S | VirtualKeyCode::Down => {
+                                    view.center.1 -= 5.0;
+                                }
+                                VirtualKeyCode::D | VirtualKeyCode::Right => {
+                                    view.center.0 -= 5.0;
+                                }
+                                _ => {}
+                            }
+                        }
                         _ => {}
                     },
                     WindowEvent::Resized(..) => {
@@ -91,6 +131,7 @@ fn main() {
                 Err(e) => log::warn!("{:?}", e),
 
                 Ok(mut current_frame) => {
+                    renderer_with_view.draw(&mut current_frame, &view);
                     renderer_simple_triangle.draw(&mut current_frame);
                     renderer_glyph.draw(&mut current_frame);
                     renderer_imgui.draw(&mut current_frame);

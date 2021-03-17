@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::graphics::CurrentFrame;
 
 pub struct RenderPass<'a> {

@@ -6,7 +6,7 @@ pub struct RendererGlyph {
 }
 
 impl RendererGlyph {
-    pub fn new(graphics_state: &GraphicsState) -> Self {
+    pub fn new(_graphics_state: &GraphicsState) -> Self {
         RendererGlyph {}
     }
 

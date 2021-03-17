@@ -5,6 +5,7 @@ pub struct RendererImgui {
     pub imgui_context: &'static RefCell<imgui::Context>,
     pub imgui_platform: &'static RefCell<imgui_winit_support::WinitPlatform>,
     pub(super) imgui_renderer: imgui_wgpu::Renderer,
+    #[allow(dead_code)]
     pub(super) imgui_demo_open: bool,
 }
 
@@ -70,7 +71,8 @@ impl RendererImgui {
         let past_n_fps = frame_counter.past_n_fps();
 
         let frame_metrics = imgui::im_str!(
-            "Frame n: {}\nFrame time: {}ms\nAverage frame time: {}\nFPS: {}\nAverage FPS: {}",
+            "-----------------------------\n\
+            Frame n: {}\nFrame time: {:.2}ms\nAverage frame time: {:.2}ms\nFPS: {:.2}\nAverage FPS: {:.2}",
             absolute_frame_n,
             last_frame_time.as_secs_f32() * 1000f32,
             average_frame_time,
@@ -79,7 +81,7 @@ impl RendererImgui {
         );
 
         let mut imgui_context = self.imgui_context.borrow_mut();
-        let mut imgui_platform = self.imgui_platform.borrow_mut();
+        let imgui_platform = self.imgui_platform.borrow_mut();
 
         imgui_context.io_mut().update_delta_time(last_frame_time);
 
@@ -89,42 +91,43 @@ impl RendererImgui {
         let ui = imgui_context.frame();
 
         {
-            let window = imgui::Window::new(imgui::im_str!("Hello world"));
-            window
-                .size([300.0, 100.0], imgui::Condition::FirstUseEver)
-                .build(&ui, || {
-                    ui.text(imgui::im_str!("Hello world!"));
-                    ui.text(imgui::im_str!("This...is...imgui-rs on WGPU!"));
-                    ui.separator();
-                    let mouse_pos = ui.io().mouse_pos;
-                    ui.text(imgui::im_str!(
-                        "Mouse Position: ({:.1},{:.1})",
-                        mouse_pos[0],
-                        mouse_pos[1]
-                    ));
-                });
+            // let window = imgui::Window::new(imgui::im_str!("Hello world"));
+            // window
+            //     .size([300.0, 100.0], imgui::Condition::FirstUseEver)
+            //     .build(&ui, || {
+            //         ui.text(imgui::im_str!("Hello world!"));
+            //         ui.text(imgui::im_str!("This...is...imgui-rs on WGPU!"));
+            //         ui.separator();
+            //         let mouse_pos = ui.io().mouse_pos;
+            //         ui.text(imgui::im_str!(
+            //             "Mouse Position: ({:.1},{:.1})",
+            //             mouse_pos[0],
+            //             mouse_pos[1]
+            //         ));
+            //     });
 
             let window = imgui::Window::new(imgui::im_str!("frame metrics"))
                 // .size([800.0, 200.0], imgui::Condition::FirstUseEver)
                 .always_auto_resize(true)
-                .begin(&ui)
-                .unwrap();
-            let plot = imgui::PlotLines::new(&ui, &frame_metrics, past_n_fps.as_slice());
-            plot.scale_min(0.0)
-                .scale_max(60.0)
-                .graph_size([600.0, 100.0])
-                .build();
-            window.end(&ui);
+                .begin(&ui);
+            if let Some(window) = window {
+                let plot = imgui::PlotLines::new(&ui, &frame_metrics, past_n_fps.as_slice());
+                plot.scale_min(0.0)
+                    .scale_max(60.0)
+                    .graph_size([600.0, 100.0])
+                    .build();
+                window.end(&ui);
+            }
 
-            let window = imgui::Window::new(imgui::im_str!("Hello too"));
-            window
-                .size([400.0, 200.0], imgui::Condition::FirstUseEver)
-                .position([400.0, 200.0], imgui::Condition::FirstUseEver)
-                .build(&ui, || {
-                    ui.text(frame_metrics);
-                });
+            // let window = imgui::Window::new(imgui::im_str!("Hello too"));
+            // window
+            //     .size([400.0, 200.0], imgui::Condition::FirstUseEver)
+            //     .position([400.0, 200.0], imgui::Condition::FirstUseEver)
+            //     .build(&ui, || {
+            //         ui.text(frame_metrics);
+            //     });
 
-            ui.show_demo_window(&mut self.imgui_demo_open);
+            // ui.show_demo_window(&mut self.imgui_demo_open);
         }
 
         let mut render_pass =
