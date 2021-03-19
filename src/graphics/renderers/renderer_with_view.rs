@@ -211,16 +211,16 @@ impl RendererWithView {
         let m = view.get_matrix4();
         let m = m * crate::graphics::sf_view::OPENGL_TO_WGPU_MATRIX4;
 
-        dbg!("oof");
-        vertices.iter().for_each(|&v| {
-            dbg!(v);
-            let p = m.transform_point(cgmath::Point3::new(
-                v.position[0],
-                v.position[1],
-                v.position[2],
-            ));
-            dbg!(p);
-        });
+        // dbg!("oof");
+        // vertices.iter().for_each(|&v| {
+        //     // dbg!(v);
+        //     let p = m.transform_point(cgmath::Point3::new(
+        //         v.position[0],
+        //         v.position[1],
+        //         v.position[2],
+        //     ));
+        //     // dbg!(p);
+        // });
 
         let u = Uniforms { m: m.into() };
 

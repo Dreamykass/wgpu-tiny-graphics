@@ -24,7 +24,8 @@ fn main() {
             })
             .level(log::LevelFilter::Trace)
             .level_for("naga", log::LevelFilter::Error)
-            .level_for("gfx_backend_vulkan", log::LevelFilter::Warn)
+            // .level_for("gfx_backend_vulkan", log::LevelFilter::Warn)
+            .level_for("gfx_backend_vulkan", log::LevelFilter::Off)
             .chain(std::io::stdout())
             .apply()
             .unwrap();
